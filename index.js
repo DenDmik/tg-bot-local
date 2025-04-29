@@ -2,13 +2,16 @@ import 'dotenv/config'
 import TelegramBot from 'node-telegram-bot-api';
 import experess from 'express';
 import cors from 'cors';
-
+import { PrismaClient } from '@prisma/client';
+// use `prisma` in your application to read and write data in your DB
+const prisma = new PrismaClient()
 const token = process.env.TOKEN;
 const webAppUrl = process.env.WEB_APP;
-const payToken = process.env.PAY_TOKENTEST
-const url = process.env.API_URL;
+//для оплаты звездочками пустая строка
+const payToken = ''
+// const url = process.env.API_URL;
 
-const port = process.env.PORT
+// const port = process.env.PORT
 
 // replace the value below with the Telegram token you receive from @BotFather
 
@@ -37,6 +40,7 @@ const start = async () => {
 }
 const handleStart =  (chatId,text) =>{
    bot.sendSticker(chatId,'https://tlgrm.eu/_/stickers/ea5/382/ea53826d-c192-376a-b766-e5abc535f1c9/1.webp');
+//////////////////////////////////////////////////////////////   
     bot.sendMessage(chatId, 'Заходи в наш интернет магазин по кнопке ниже', {
         reply_markup: {
             inline_keyboard: [
@@ -44,14 +48,16 @@ const handleStart =  (chatId,text) =>{
             ]
         }
     })
-    // bot.sendMessage(chatId,'Open Web App',{
-    //     reply_markup:{
-    //         keyboard:[
-    //             [{text: 'Open Web App', web_app: {url: webAppUrl}}]
-    //         ] ,
-    //         resize_keyboard: true
-    //     }
-    // })
+    //////////////////////////////////////////////////////////
+    bot.sendMessage(chatId,'Open Web App',{
+        reply_markup:{
+            keyboard:[
+                [{text: 'Open Web App', web_app: {url: webAppUrl}}]
+            ] ,
+            resize_keyboard: true
+        }
+    })
+    ///////////////////////////////////////////////////////////
 }
  start()
  
@@ -79,8 +85,29 @@ if(text === '/donat'){
         'XTR', 
         [{label:'RRRR', amount: 1}]
     )
-} return;
-    
+} else
+if(msg?.web_app_data?.data) {
+    try {
+        const data = JSON.parse(msg?.web_app_data?.data)
+        console.log(data)
+        await bot.sendMessage(chatId, 'Спасибо за обратную связь!')
+        await bot.sendMessage(chatId, 'Ваш donat: ' + data?.donat);
+        // await bot.sendMessage(chatId, 'Ваш chat: ' + data?.chatId);
+        await bot.sendInvoice(
+            chatId, 
+            'Задонатить', 
+            'Покупка ', 
+            'донат', 
+            payToken,
+            'XTR', 
+            [{label:'RRRR', amount:data.donat}]
+        )
+
+    } catch (e) {
+        console.log(e);
+    }
+} 
+   
 })
 bot.on('pre_checkout_query', async ctx => {
 
@@ -114,23 +141,27 @@ console.log(`МЕТОД successful_payment:${ctx.successful_payment.invoice_payl
 
     }
 })
+////////////////////////////////////////
+
+
+//////////////////////////////////
 app.post('/createInvoice', async (req, res) => {
     const {data} = req.body;
-    console.log(`DONAT:${data.donat} queryId:${data.queryId} chatId:${data.chatId}`)
-// const invoice = {
-//     name:'rebe',
-//     age:18
-// }
+    const queryId = data?.queryId
+    const donat = data.donatCurrent
+    const chatId = data.chatId
+    console.log(`DONAT:${donat} queryId:${queryId} chatId:${data.chatId}`)
 const invoice = await bot.createInvoiceLink(
     'Задонатить', 
     'Покупка ', 
     'донат', 
     payToken,
     'XTR', 
-    [{label:'RRRR', amount:data.donat}]
+    [{label:'RRRR', amount:donat}]
 )
 
     try {
+        ////////////////это ответ в чат телеграма
         // await bot.answerWebAppQuery(queryId, {
         //     type: 'article',
         //     id: queryId,
@@ -139,15 +170,30 @@ const invoice = await bot.createInvoiceLink(
         //         message_text: ` Поздравляю с покупкой, вы приобрели товар на сумму ${donat} `
         //     }
         // })
+        ////////////////////////////////////////
         return res.status(200).json({
             invoice
         });
     } catch (e) {
         return res.status(500).json({})
-    }
+    } 
+}
+)
+////////////////////////////
+app.post(`/bd/:id`, async(req,res)=>{
+    const { id } = req.params
+    const numberId = +id
+    const response = await prisma.phrase.findUnique({
+        where:{id:numberId}
+})
+if(!response) return res.status(500).json({})
+    console.log(response)
+return res.status(200).json(response);
 })
 
-const PORT = 3000;
+////////////////////////////
+
+const PORT = 3002;
 
 app.listen(PORT, () => console.log('server started on PORT ' + PORT))
 //////////////////////

@@ -1,0 +1,14 @@
+services:
+  db:
+    image: postgres:14.1-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=tg-bot-postgres
+      - POSTGRES_PASSWORD=tg-bot-postgres
+    ports:
+      - '5433:5432'
+    #  - '${HOST_PORT}:${CONTAINER_PORT}'
+    volumes:
+      - db2:/var/lib/postgresql/data
+volumes:
+  db2:
